@@ -1,9 +1,9 @@
-// app/api/narrative/route.ts
+// app/api/financial/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { fetchNarrative } from "@/lib/sonar";
+import { fetchFinancialReality } from "../../../lib/sonarFinancial";
 import { validateEnv } from "../envCheck";
 
-export const runtime = "edge";      // ✅ zero cold-start in Vercel Edge
+export const runtime = "edge";
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,17 +21,17 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-      const data = await fetchNarrative(company.toUpperCase());
+      const data = await fetchFinancialReality(company.toUpperCase());
 
-      // 🗝️ Cache for 30 min to cut API spend; tweak as you like
+      // Cache for 1 day as financial data doesn't change that frequently
       return new NextResponse(JSON.stringify(data), {
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "s-maxage=1800, stale-while-revalidate=600"
+          "Cache-Control": "s-maxage=86400, stale-while-revalidate=3600"
         }
       });
     } catch (e: any) {
-      console.error("API error:", e);
+      console.error("Financial API error:", e);
       return NextResponse.json(
         {
           error: e.message,
