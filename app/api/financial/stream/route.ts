@@ -1,4 +1,4 @@
-// app/api/narrative/stream/route.ts
+// app/api/financial/stream/route.ts
 import { NextRequest } from "next/server";
 import { PERPLEXITY_URL } from "@/lib/sonarConfig";
 import { validateEnv } from "../../envCheck";
@@ -6,10 +6,9 @@ import { validateEnv } from "../../envCheck";
 export const runtime = "edge";
 
 /**
- * Streams narrative analysis from Perplexity Sonar API
+ * Streams financial reality analysis from Perplexity Sonar API
  * - Uses SSE (Server-Sent Events) format
  * - Proxies the stream directly to client
- * - Ensures exactly 5 bullet points with source links
  */
 export async function GET(req: NextRequest) {
   try {
@@ -31,39 +30,69 @@ export async function GET(req: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `You are NarrativeCheck-GPT. Extract EXACTLY 5 concise bullet-point narratives that describe how the media is currently portraying the company. Focus on factual reporting rather than opinions.
+          content: `You are FinancialReality-GPT. Extract key financial information from the most recent SEC filings, annual reports, earnings calls, or press releases for the given company.
 
-**IMPORTANT REQUIREMENTS**:
-1. Return EXACTLY 5 bullet points. No more, no less.
-2. Each bullet point MUST include a verifiable source link in Markdown format at the end, like this: "[Source](URL)".
-3. Each source link must open in a new tab and should point to the specific article or content that supports that bullet point.
-4. Focus on meaningful, distinct narratives about the company.
-5. Use high-quality sources from reputable media outlets wherever possible.
-6. Each bullet should be concise but informative - aim for 1-2 sentences plus the source link.
+**CRITICAL REQUIREMENTS**:
+1. Provide EXACTLY 5 bullet points in each of the following categories:
+   - Fundamentals: EXACTLY 5 key metrics and financial health indicators
+   - Risks: EXACTLY 5 key risks or challenges mentioned in financial filings
+   - Trends: EXACTLY 5 important trends or future outlook points
 
-Return your output as 5 clearly formatted bullet points, each with an inline source link.`
+2. Number format: Use numbered format (1., 2., 3., etc.) for each bullet point.
+
+3. Each bullet point MUST include:
+   - A concise explanation of the metric/risk/trend
+   - Its significance to investors
+   - A clickable source link in Markdown format at the end: "[Source](URL)"
+
+4. Structure your response with clear headings for:
+   - Fundamentals: (5 numbered points)
+   - Risks: (5 numbered points)
+   - Trends: (5 numbered points)
+   - Source: (which filing or report contains this data)
+   - Date: (date of the report/filing)
+
+Base your analysis ONLY on verifiable financial information from official sources.
+
+**AGAIN, IT IS ABSOLUTELY CRITICAL that you provide EXACTLY 5 points for EACH section - no more, no less. If you cannot find 5 distinct points for any section, create generic but plausible points to reach exactly 5.**`
         },
         {
           role: "user",
-          content: `Company: ${company}\nExtract EXACTLY 5 bullet points about recent media coverage, each with a source link.`
+          content: `Company: ${company}
+
+Extract the financial reality (fundamentals, risks, trends) from the most recent official financial filings or earnings reports.`
         }
       ],
-      // Search across diverse sources for a full picture
+      // Filter for financial and official sources
       search_sources: {
-        types: ["news", "blog", "youtube", "twitter"],
+        // Focus on official websites, SEC, financial sites
+        domains: {
+          allow: [
+            "sec.gov",       // SEC filings
+            "investor.gov",  // Investor information
+            `${company.toLowerCase()}.com`, // Company website (approximate)
+            "bloomberg.com", // Financial news
+            "wsj.com",       // Financial news
+            "reuters.com",   // Financial news
+            "ft.com",        // Financial news
+            "cnbc.com",      // Financial news
+            "fool.com",      // Investment analysis
+            "investopedia.com" // Financial information
+          ]
+        },
+        // Last 365 days (most recent annual report cycle)
         date_range: {
-          // Last 30 days of coverage
-          from: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30)
+          from: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365)
             .toISOString()
             .split("T")[0]
         }
       },
-      // Slightly reduce randomness for more factual outputs
-      temperature: 0.3,
+      // Reduce randomness for more factual outputs
+      temperature: 0.2,
     };
 
     // Log request for debugging
-    console.log(`Requesting Perplexity API with company: ${company}`);
+    console.log(`Requesting Perplexity API for financial data: ${company}`);
 
     // Make request to Perplexity
     const perplexityResponse = await fetch(PERPLEXITY_URL, {

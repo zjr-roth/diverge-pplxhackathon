@@ -1,24 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { Share2, Copy, CheckCircle2 } from "lucide-react";
+import { Share2, Copy, CheckCircle2, ExternalLink } from "lucide-react";
+import type { NarrativeBullet } from "@/lib/useNarrativeStream";
 
 interface NarrativeCardProps {
 	company: string;
-	narratives: string[];
+	bulletPoints: NarrativeBullet[];
 	className?: string;
 }
 
 export default function NarrativeCard({
 	company,
-	narratives,
+	bulletPoints,
 	className = "",
 }: NarrativeCardProps) {
 	const [copied, setCopied] = useState(false);
 
 	// Format narratives for copying
-	const copyText = `Media Narratives for ${company}:\n\n${narratives
-		.map((n) => `• ${n}`)
+	const copyText = `Media Narratives for ${company}:\n\n${bulletPoints
+		.map(
+			(b, idx) =>
+				`${idx + 1}. ${b.text}${
+					b.source ? ` (Source: ${b.source.url})` : ""
+				}`
+		)
 		.join("\n")}`;
 
 	const handleCopy = async () => {
@@ -67,14 +73,33 @@ export default function NarrativeCard({
 			{/* Card content */}
 			<div className="p-4">
 				<ul className="space-y-3">
-					{narratives.map((narrative, index) => (
+					{bulletPoints.map((bullet, index) => (
 						<li key={index} className="flex items-start gap-3">
 							<div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-sm font-medium">
 								{index + 1}
 							</div>
-							<span className="text-gray-700 dark:text-gray-300">
-								{narrative}
-							</span>
+							<div className="text-gray-700 dark:text-gray-300">
+								<span>{bullet.text}</span>
+								{bullet.source && (
+									<a
+										href={bullet.source.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="inline-flex items-center ml-1 text-blue-600 dark:text-blue-400 hover:underline"
+									>
+										<span className="text-xs font-medium">
+											[Source
+										</span>
+										<ExternalLink
+											size={10}
+											className="ml-0.5 mr-0.5"
+										/>
+										<span className="text-xs font-medium">
+											]
+										</span>
+									</a>
+								)}
+							</div>
 						</li>
 					))}
 				</ul>

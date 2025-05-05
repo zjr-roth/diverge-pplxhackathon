@@ -1,57 +1,36 @@
 "use client";
 
 import { useNarrativeStream } from "@/lib/useNarrativeStream";
-import { useFinancialReality } from "@/lib/useFinancialReality";
+import { useFinancialStream } from "@/lib/useFinancialStream";
 import {
 	Search,
 	RefreshCw,
 	AlertTriangle,
 	Loader2,
-	Copy,
-	CheckCircle,
+	ExternalLink,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import PopularCompanies from "./PopularCompanies";
 import NarrativeSkeleton from "./NarrativeSkeleton";
 import NarrativeCard from "./NarrativeCard";
-import FinancialRealityView from "./FinancialRealityView";
+import FinancialRealityStreamView from "./FinancialRealityStreamView";
 import NarrativeFinancialComparison from "./NarrativeFinancialComparison";
-
-/**
- * Formats streamed content into bullet points
- * Attempts to parse even incomplete data into a readable format
- */
-function formatStreamContent(content: string): string[] {
-	if (!content.trim()) return [];
-
-	// Split by common bullet point markers and newlines
-	const lines = content
-		.split(/(?:\r?\n|\r|•|-)/)
-		.map((line) => line.trim())
-		.filter((line) => line.length > 0);
-
-	// If empty after splitting (no clear bullet format yet), show as single item
-	return lines.length ? lines : [content.trim()];
-}
 
 export default function NarrativeStreamView() {
 	const [query, setQuery] = useState<string>("");
 	const [company, setCompany] = useState<string | null>(null);
-	const [copied, setCopied] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	// Get streaming content using our custom hook
-	const { content, isLoading, isDone, error } = useNarrativeStream(company);
-
-	// Get financial data using our custom hook
+	// Get streaming content using our custom hooks
+	const { bulletPoints, rawContent, isLoading, isDone, error } =
+		useNarrativeStream(company);
 	const {
 		financialData,
+		rawContent: financialRawContent,
 		isLoading: isFinancialLoading,
+		isDone: isFinancialDone,
 		error: financialError,
-	} = useFinancialReality(company);
-
-	// Format the raw stream content into bullet points
-	const narratives = formatStreamContent(content);
+	} = useFinancialStream(company);
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -67,30 +46,14 @@ export default function NarrativeStreamView() {
 		}
 	};
 
-	const handleCopy = async () => {
-		if (narratives.length === 0) return;
-
-		const copyText = `Media Narratives for ${company?.toUpperCase()}:\n\n${narratives
-			.map((n) => `• ${n}`)
-			.join("\n")}`;
-
-		try {
-			await navigator.clipboard.writeText(copyText);
-			setCopied(true);
-			setTimeout(() => setCopied(false), 2000);
-		} catch (err) {
-			console.error("Failed to copy:", err);
-		}
-	};
-
 	// Auto-scroll to bottom of content as new chunks arrive
 	const resultsRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		if (resultsRef.current && isLoading) {
+		if (resultsRef.current && (isLoading || isFinancialLoading)) {
 			resultsRef.current.scrollTop = resultsRef.current.scrollHeight;
 		}
-	}, [content, isLoading]);
+	}, [rawContent, financialRawContent, isLoading, isFinancialLoading]);
 
 	return (
 		<div className="flex flex-col w-full max-w-xl">
@@ -118,10 +81,10 @@ export default function NarrativeStreamView() {
 							onChange={(e) => setQuery(e.target.value)}
 							disabled={isLoading || isFinancialLoading}
 							className="flex-1 h-12 pl-10 pr-24 py-2 text-base rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-blue-500
-                         border-none
-                         bg-gray-800/50
-                         text-white placeholder-gray-400"
+                     focus:outline-none focus:ring-2 focus:ring-blue-500
+                     border-none
+                     bg-gray-800/50
+                     text-white placeholder-gray-400"
 						/>
 
 						<button
@@ -130,10 +93,10 @@ export default function NarrativeStreamView() {
 								isLoading || isFinancialLoading || !query.trim()
 							}
 							className="absolute right-0 h-full px-5 text-base font-medium
-                         bg-blue-600 hover:bg-blue-700
-                         focus:outline-none focus:ring-2 focus:ring-blue-500
-                         text-white rounded-r-lg transition-colors
-                         disabled:opacity-50 disabled:cursor-not-allowed"
+                     bg-blue-600 hover:bg-blue-700
+                     focus:outline-none focus:ring-2 focus:ring-blue-500
+                     text-white rounded-r-lg transition-colors
+                     disabled:opacity-50 disabled:cursor-not-allowed"
 						>
 							{isLoading || isFinancialLoading ? (
 								<Loader2 size={18} className="animate-spin" />
@@ -161,7 +124,7 @@ export default function NarrativeStreamView() {
 			{/* Results display */}
 			{(isLoading ||
 				isFinancialLoading ||
-				content ||
+				rawContent ||
 				error ||
 				financialError ||
 				company) && (
@@ -174,18 +137,18 @@ export default function NarrativeStreamView() {
 						</h2>
 
 						{/* Narrative content */}
-						{isLoading && !content && !error ? (
+						{isLoading && !rawContent && !error ? (
 							<NarrativeSkeleton company={company || ""} />
-						) : isDone && narratives.length > 0 && !error ? (
+						) : isDone && bulletPoints.length > 0 && !error ? (
 							<NarrativeCard
 								company={company || ""}
-								narratives={narratives}
+								bulletPoints={bulletPoints}
 							/>
 						) : (
 							<div
 								ref={resultsRef}
 								className="relative overflow-hidden rounded-xl border border-gray-700
-                         bg-gray-800/50 shadow-lg"
+                     bg-gray-800/50 shadow-lg"
 							>
 								{/* Header */}
 								<div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 bg-gray-800/80">
@@ -195,23 +158,6 @@ export default function NarrativeStreamView() {
 									</h3>
 
 									<div className="flex items-center space-x-2">
-										{isDone && (
-											<button
-												onClick={handleCopy}
-												className="p-1.5 rounded-full hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
-												title="Copy to clipboard"
-											>
-												{copied ? (
-													<CheckCircle
-														size={18}
-														className="text-green-500"
-													/>
-												) : (
-													<Copy size={18} />
-												)}
-											</button>
-										)}
-
 										{isDone && (
 											<button
 												onClick={handleReset}
@@ -244,10 +190,10 @@ export default function NarrativeStreamView() {
 										</div>
 									) : (
 										<div className="space-y-4">
-											{narratives.length > 0 ? (
+											{bulletPoints.length > 0 ? (
 												<ul className="space-y-3">
-													{narratives.map(
-														(item, idx) => (
+													{bulletPoints.map(
+														(bullet, idx) => (
 															<li
 																key={idx}
 																className="flex items-start"
@@ -255,9 +201,38 @@ export default function NarrativeStreamView() {
 																<div className="flex-shrink-0 w-6 h-6 mr-3 flex items-center justify-center rounded-full bg-blue-900/40 text-blue-400 text-sm font-medium">
 																	{idx + 1}
 																</div>
-																<span className="text-gray-200 leading-relaxed">
-																	{item}
-																</span>
+																<div className="text-gray-200 leading-relaxed">
+																	<span>
+																		{
+																			bullet.text
+																		}
+																	</span>
+																	{bullet.source && (
+																		<a
+																			href={
+																				bullet
+																					.source
+																					.url
+																			}
+																			target="_blank"
+																			rel="noopener noreferrer"
+																			className="inline-flex items-center ml-1 text-blue-400 hover:underline"
+																		>
+																			<span className="text-xs font-medium">
+																				[Source
+																			</span>
+																			<ExternalLink
+																				size={
+																					10
+																				}
+																				className="ml-0.5 mr-0.5"
+																			/>
+																			<span className="text-xs font-medium">
+																				]
+																			</span>
+																		</a>
+																	)}
+																</div>
 															</li>
 														)
 													)}
@@ -324,7 +299,7 @@ export default function NarrativeStreamView() {
 								<span className="w-1.5 h-5 bg-green-500 rounded-sm mr-2"></span>
 								Financial Reality
 							</h2>
-							<FinancialRealityView company={company} />
+							<FinancialRealityStreamView company={company} />
 						</div>
 					)}
 
@@ -332,9 +307,9 @@ export default function NarrativeStreamView() {
 					{company &&
 						isDone &&
 						!error &&
-						financialData &&
+						isFinancialDone &&
 						!financialError &&
-						narratives.length > 0 && (
+						bulletPoints.length > 0 && (
 							<div>
 								<h2 className="text-xl font-semibold text-white mb-3 flex items-center">
 									<span className="w-1.5 h-5 bg-purple-500 rounded-sm mr-2"></span>
@@ -342,26 +317,37 @@ export default function NarrativeStreamView() {
 								</h2>
 								<NarrativeFinancialComparison
 									company={company}
-									narratives={narratives}
-									financialData={financialData}
+									narratives={bulletPoints.map(
+										(bp) => bp.text
+									)}
+									financialData={{
+										...financialData,
+										company: company || "",
+									}}
 									isLoading={isLoading || isFinancialLoading}
 								/>
 							</div>
 						)}
 
 					{/* Reset button for completed searches */}
-					{isDone && !isLoading && !isFinancialLoading && (
-						<div className="flex justify-center mt-8">
-							<button
-								onClick={handleReset}
-								className="px-4 py-2 text-sm font-medium text-blue-400 border border-blue-900/50
-                          rounded-lg hover:bg-blue-900/20 transition-colors"
-							>
-								<RefreshCw size={14} className="inline mr-2" />
-								New Analysis
-							</button>
-						</div>
-					)}
+					{isDone &&
+						isFinancialDone &&
+						!isLoading &&
+						!isFinancialLoading && (
+							<div className="flex justify-center mt-8">
+								<button
+									onClick={handleReset}
+									className="px-4 py-2 text-sm font-medium text-blue-400 border border-blue-900/50
+                      rounded-lg hover:bg-blue-900/20 transition-colors"
+								>
+									<RefreshCw
+										size={14}
+										className="inline mr-2"
+									/>
+									New Analysis
+								</button>
+							</div>
+						)}
 				</div>
 			)}
 		</div>
