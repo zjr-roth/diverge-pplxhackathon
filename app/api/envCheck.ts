@@ -1,26 +1,28 @@
 // app/api/envCheck.ts
 /**
- * Validates that all required environment variables are set
- * Use this at the top of API routes to avoid runtime errors
+ * Environment variable validation for NarrativeCheck APIs
  */
 export function validateEnv() {
-    // Required environment variables
-    const requiredEnvVars = [
-      "PERPLEXITY_API_KEY",
-    ];
+  const required = [
+    'PERPLEXITY_API_KEY',
+    'REDDIT_CLIENT_ID',
+    'REDDIT_CLIENT_SECRET'
+  ];
 
-    // Check each required variable
-    const missingVars = requiredEnvVars.filter(
-      (envVar) => !process.env[envVar]
-    );
+  const missing = required.filter(key => !process.env[key]);
 
-    // If any variables are missing, throw error
-    if (missingVars.length > 0) {
-      throw new Error(
-        `Missing required environment variables: ${missingVars.join(", ")}. ` +
-        `Make sure to create a .env.local file with these variables.`
-      );
-    }
-
-    return true;
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
+
+  // Validate format of Reddit credentials
+  if (process.env.REDDIT_CLIENT_ID && !process.env.REDDIT_CLIENT_ID.match(/^[a-zA-Z0-9_-]+$/)) {
+    throw new Error('Invalid REDDIT_CLIENT_ID format');
+  }
+
+  if (process.env.REDDIT_CLIENT_SECRET && !process.env.REDDIT_CLIENT_SECRET.match(/^[a-zA-Z0-9_-]+$/)) {
+    throw new Error('Invalid REDDIT_CLIENT_SECRET format');
+  }
+
+  return true;
+}
